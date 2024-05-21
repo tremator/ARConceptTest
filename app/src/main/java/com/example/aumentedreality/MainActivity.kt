@@ -1,9 +1,9 @@
 package com.example.aumentedreality
 
-import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -41,7 +41,6 @@ import io.github.sceneview.loaders.MaterialLoader
 import io.github.sceneview.loaders.ModelLoader
 import io.github.sceneview.node.CubeNode
 import io.github.sceneview.node.ModelNode
-import io.github.sceneview.node.Node
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberModelLoader
 import io.github.sceneview.rememberOnGestureListener
@@ -55,10 +54,13 @@ import io.github.sceneview.rememberNodes
 import io.github.sceneview.rememberView
 
 class MainActivity: ComponentActivity() {
-    @SuppressLint("UnrememberedMutableState")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            var currentModel by remember {
+                mutableStateOf(Food("wood.glb", R.drawable.wood))
+            }
+
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = Color.Black
@@ -66,13 +68,11 @@ class MainActivity: ComponentActivity() {
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    var currentModel by
-                        mutableStateOf(Food("wood.glb", R.drawable.burger))
 
-                    ARScreen(currentModel = currentModel)
-                    Menu(modifier = Modifier.align(Alignment.BottomCenter)) {
-                        currentModel = it
-                    }
+                    ARScreen(currentModel)
+                    Menu(modifier = Modifier.align(Alignment.BottomCenter),
+                        updateModel = { currentModel = it }
+                    )
                 }
             }
         }
@@ -80,22 +80,18 @@ class MainActivity: ComponentActivity() {
 }
 
 @Composable
-fun Menu(modifier: Modifier,onClick:(Food)->Unit) {
+fun Menu(modifier: Modifier, updateModel: (Food) ->Unit) {
     var currentIndex by remember {
         mutableIntStateOf(0)
     }
-
     val itemsList = listOf(
-        Food("burger.glb", R.drawable.burger),
-        Food("instant.glb",R.drawable.instant),
-        Food("momos.glb",R.drawable.momos),
-        Food("pizza.glb",R.drawable.pizza),
-        Food("ramen.glb",R.drawable.ramen),
+        Food("wood.glb", R.drawable.wood),
+        Food("damaged_helmet.glb",R.drawable.damaged_helmet)
 
         )
     fun updateIndex(offset:Int){
         currentIndex = (currentIndex+offset + itemsList.size) % itemsList.size
-        onClick(itemsList[currentIndex])
+        updateModel(itemsList[currentIndex])
     }
     Row(modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -132,7 +128,15 @@ fun CircularImage(
 }
 
 @Composable
-fun ARScreen(currentModel: Food) {
+fun ARScreen(model: Food) {
+
+    var currentModel by remember {
+        mutableStateOf(model)
+    }
+
+    if (currentModel.name != model.name) {
+        currentModel = model
+    }
 
     var frame by remember {
         mutableStateOf<Frame?>(null)
@@ -177,6 +181,7 @@ fun ARScreen(currentModel: Food) {
                 }
                 config.instantPlacementMode = Config.InstantPlacementMode.LOCAL_Y_UP
                 config.lightEstimationMode = Config.LightEstimationMode.ENVIRONMENTAL_HDR
+                config.planeFindingMode = Config.PlaneFindingMode.HORIZONTAL_AND_VERTICAL
             },
             onViewCreated = {
                 this.planeRenderer.isShadowReceiver = false
@@ -193,7 +198,9 @@ fun ARScreen(currentModel: Food) {
                 frame = updateFrame
                 if (nodes.isEmpty()) {
                     updateFrame.getUpdatedPlanes()
-                        .firstOrNull() { it.type == Plane.Type.HORIZONTAL_UPWARD_FACING }
+                        .firstOrNull() {
+                            it.type == Plane.Type.VERTICAL || it.type == Plane.Type.HORIZONTAL_UPWARD_FACING
+                        }
                         ?.let { it.createAnchorOrNull(it.centerPose) }?.let { anchor ->
                             nodes += createAnchorNode(
                                 engine = engine,
@@ -238,8 +245,10 @@ fun createAnchorNode(
 ): AnchorNode {
     val anchorNode = AnchorNode(engine, anchor)
     val modelNode = ModelNode(
-        modelInstance = modelLoader.createInstancedModel("models/${currentModel.name}",1).single(),
+        modelInstance = modelLoader.createInstancedModel("models/${currentModel.name}",10).last(),
+        scaleToUnits = 0.8f
     ).apply {
+
         isEditable = true
     }
     val boundingBoxNode = CubeNode(
