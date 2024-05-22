@@ -181,6 +181,7 @@ fun ARScreen(model: Food) {
                 }
                 config.instantPlacementMode = Config.InstantPlacementMode.LOCAL_Y_UP
                 config.lightEstimationMode = Config.LightEstimationMode.ENVIRONMENTAL_HDR
+                //With this property we define what kind of planes we are going to scan
                 config.planeFindingMode = Config.PlaneFindingMode.HORIZONTAL_AND_VERTICAL
             },
             onViewCreated = {
@@ -199,6 +200,7 @@ fun ARScreen(model: Food) {
                 if (nodes.isEmpty()) {
                     updateFrame.getUpdatedPlanes()
                         .firstOrNull() {
+                            //Here we check the plane type if it is vertical or horizontal
                             it.type == Plane.Type.VERTICAL || it.type == Plane.Type.HORIZONTAL_UPWARD_FACING
                         }
                         ?.let { it.createAnchorOrNull(it.centerPose) }?.let { anchor ->
@@ -219,7 +221,6 @@ fun ARScreen(model: Food) {
                         hitResults?.firstOrNull() {
                             it.isValid(depthPoint = false, point = false)
                         }?.createAnchorOrNull()?.let { anchor ->
-                            println("SE HIZO UN TAP")
                             nodes.clear()
                             nodes += createAnchorNode(
                                 engine = engine,
@@ -246,7 +247,9 @@ fun createAnchorNode(
     val anchorNode = AnchorNode(engine, anchor)
     val modelNode = ModelNode(
         modelInstance = modelLoader.createInstancedModel("models/${currentModel.name}",10).last(),
-        scaleToUnits = 0.8f
+        //The property scale to units determinate the size of the model when its showed on the screen,
+        //Where 1 is 1 meter
+        scaleToUnits = if (currentModel.name == "damaged_helmet.glb")  0.8f else null
     ).apply {
 
         isEditable = true
