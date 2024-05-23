@@ -251,8 +251,11 @@ fun createAnchorNode(
         //Where 1 is 1 meter
         scaleToUnits = if (currentModel.name == "damaged_helmet.glb")  0.8f else null
     ).apply {
-
         isEditable = true
+        isRotationEditable = true
+        isScaleEditable = false
+        isPositionEditable = false
+
     }
     val boundingBoxNode = CubeNode(
         engine,
@@ -270,6 +273,7 @@ fun createAnchorNode(
     }
     return anchorNode
 }
+
 
 
 data class Food(var name:String,var imageId:Int)
